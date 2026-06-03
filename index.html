@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Numbers Game - Magic Cat</title>
+  <style>
+    html, body {
+      height: 100%; margin:0; padding:0; box-sizing:border-box;
+      background: transparent;
+    }
+    #game-root {
+      width: 100vw; height: 100vh; overflow:hidden;
+      position:relative; font-family: 'Segoe UI', sans-serif;
+      background: transparent;
+    }
+    /* Character */
+    .character {
+      position: absolute;
+      left: 20px;
+      top: 50%; transform: translateY(-50%);
+      width: 200px; height:200px;
+      z-index: 4;
+      transition: transform 1s cubic-bezier(.68,-0.55,.27,1.55);
+    }
+    /* Stars (objects) */
+    .star-obj {
+      position: absolute;
+      width: 90px; height:90px;
+      cursor:pointer;
+      transition: box-shadow .4s, filter .4s, transform .2s cubic-bezier(.68,-0.55,.27,1.55);
+      border-radius: 50%;
+    }
+    .star-glow {
+      box-shadow: 0 0 24px 4px #e5d8ff, 0 0 24px 12px #ffdb66;
+      filter: drop-shadow(0 0 10px #9b4aff);
+      border: 2.5px solid #9b4aff;
+      outline: 3px solid #ffdb6699;
+      transform: scale(1.18) !important;
+      z-index: 10;
+    }
+    .pulsate {
+      animation: pulse .7s cubic-bezier(.68,-0.55,.27,1.55) 1;
+    }
+    @keyframes pulse {
+      0% { transform:scale(1);}
+      40%{transform:scale(1.15);}
+      100% {transform:scale(0);}
+    }
+    /* Task Box */
+    .task-box-wrap {
+      position: fixed; left:50%; top:50%; transform:translate(-50%,-50%);
+      z-index: 20;
+    }
+    .task-box {
+      min-width: 350px; min-height: 140px;
+      background: linear-gradient(120deg, #6248e7 88%, #ffd36a 100%);
+      border: 4px solid #ffd36a;
+      border-radius: 32px;
+      box-shadow: 0 2px 22px 2px #8c3dff67, 0 0 80px #ffd36a33 inset;
+      display: flex; flex-direction: column; align-items: center; justify-content: space-around;
+      padding: 28px 34px 24px 34px;
+      position: relative;
+      overflow:visible;
+    }
+    .task-glow {
+      background: linear-gradient(120deg, #9d7ae7 28%, #f7e2a1 100%);
+      box-shadow: 0 0 0 8px #e2ccff40, 0 0 64px 14px #ffd36a28;
+      border: 5px solid #f7e2a1;
+    }
+    .task-box .task {
+      font-size: 2.1rem;
+      color: #ffd36a;
+      letter-spacing: .07em;
+      margin:0 0 .9em 0; text-shadow:0 2px 8px #8c3dff80;
+      font-weight: 700;
+    }
+    .task-box input[type=text] {
+      padding: 12px 20px;
+      font-size: 1.3rem;
+      border-radius: 12px;
+      border: 2px solid #ffd36a;
+      background: #fff0fdc0;
+      outline:none;
+      transition: border .2s;
+      margin-bottom: 10px;
+      min-width:120px;
+      color: #6752e7;
+    }
+    .task-box input[type=text].wrong {
+      border:2.5px solid #d80055;
+      background: #ffe3ef;
+      animation: shake .46s cubic-bezier(.36,.07,.19,.97) 2;
+    }
+    @keyframes shake {
+      10%, 90% { transform:translateX(-2px);}
+      20%, 80% { transform:translateX(5px);}
+      30%, 50%, 70% { transform:translateX(-8px);}
+      40%, 60% { transform:translateX(8px);}
+      100%{transform:translateX(0);}
+    }
+    .check-btn {
+      margin-top: 6px;
+      padding: 8px 24px;
+      border-radius: 16px;
+      border: none;
+      font-size: 1.3rem;
+      background: linear-gradient(85deg, #ffd36a 50%, #7f58e7 140%);
+      color: #6248e7;
+      font-weight: bold; letter-spacing: .04em; box-shadow: 0 2px 10px #9b4aff70;
+      cursor: pointer; transition: background .22s, color .22s;
+    }
+    .check-btn:hover { background: linear-gradient(89deg, #8c3dff 22%, #ffd36a 100%); color: #fff}
+    .hint-box {
+      margin-top: 8px;
+      padding: 6px 12px; color: #6248e7; background: #ffe2fdcd;
+      border-radius: 10px;
+      border: 1px dashed #ffd36a; font-size:.98rem; font-weight: 600;
+      text-align:center; max-width:250px;
+    }
+    .progress-wrap {
+      position: fixed;
+      bottom: 13px;
+      left: 50%; transform: translateX(-50%);
+      background: #fff0;
+      padding: 8px 36px 8.5px 36px;
+      border-radius: 18px; border: 2px solid #ffd36a;
+      z-index: 15;
+      box-shadow: 0 0 14px #9b4aff40;
+      text-align:center;
+    }
+    .progress-bar {
+      height: 22px;
+      width: 320px; max-width: 50vw;
+      background: linear-gradient(95deg,#9462f0cc 60%, #ffd36a 180%);
+      border-radius: 13px;
+      box-shadow: 0 0 24px 8px #ffd36a69 inset;
+      overflow:hidden; margin-bottom: 6px;
+      position:relative;
+    }
+    .progress-inner {
+      height: 100%; width: 0;
+      background: linear-gradient(90deg, #ecd3ff 77%, #ffd36a 100%);
+      border-radius: 13px 0 0 13px;
+      box-shadow:0 1.5px 18px #ffd36a66;
+      transition: width .5s cubic-bezier(.68,-0.55,.27,1.55);
+    }
+    .score-block {
+      font-size: 1.19rem; color: #ae89ff;
+      font-weight: 700;
+      letter-spacing:.06em;
+      text-shadow: 0 1.5px 7px #ffd36a40;
+    }
+    .combo-block {
+      margin-top: 6px; color: #fff; font-weight: 800; font-size: 1.16rem;
+      letter-spacing: .04em; 
+      text-shadow: 0 1.5px 8px #ffd36aB0,0 0 24px #8c3dff;
+      animation: combo-bounce .5s;
+    }
+    @keyframes combo-bounce {
+      0%{transform:scale(1);}
+      50%{transform:scale(1.35);}
+      100%{transform:scale(1);}
+    }
+    /* Sparkles - confetti replacement */
+    .sparkle {
+      position: absolute;
+      pointer-events:none;
+      z-index: 100;
+      border-radius:50%;
+      width:13px;height:13px;
+      background: radial-gradient(circle, #fff6ae 30%, #9d7ae7 65%, #fff0 90%);
+      opacity:.95;
+      animation: sparkle-explode .9s forwards;
+    }
+    .sparkle.cyan {
+      background: radial-gradient(circle, #b4faff 22%, #6248e7 60%, #fff0 95%);
+      box-shadow: 0 0 14px #64cae3d0;
+    }
+    .sparkle.pink {
+      background: radial-gradient(circle, #ffd8f8 35%, #ff84e1 70%, #fff0 99%);
+      box-shadow: 0 0 15px #ee8ceea0;
+    }
+    .sparkle.yellow {
+      background: radial-gradient(circle, #fff6ae 45%, #ffd36a 85%, #fff0 98%);
+      box-shadow:0 0 17px #ffd36a44;
+    }
+    @keyframes sparkle-explode {
+      0% {opacity:0; transform:scale(.5);}
+      60%{opacity:1;}
+      85% {opacity:1;transform:scale(1.4);}
+      100%{opacity: .1; transform:scale(0) translateY(-60px);}
+    }
+    /* Win Frame */
+    .win-box {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      min-width: 370px; padding: 34px 30px 30px 30px;
+      background: linear-gradient(120deg, #6248e7 88%, #ffd36a 100%);
+      border: 6px solid #ffd36a;
+      border-radius: 40px;
+      box-shadow: 0 2px 45px 7px #8c3dff70, 0 0 80px #ffd36a40 inset;
+      color: #fff;
+      text-align:center; z-index:110;
+      animation: bounceIn .7s cubic-bezier(.65,.3,.19,.97) 1;
+    }
+    .win-title {font-size:2.4rem; color:#ffd36a;text-shadow:0 0 20px #fff;}
+    .win-score {
+      font-size:1.4rem;
+      color: #fff; text-shadow:0 0 20px #ffd36a62;
+      margin-bottom:18px;
+    }
+    .win-text {
+      font-size:1.12rem; color: #fff;
+      margin:6px 0 5px 0;
+      text-shadow:0 1px 11px #d8baff99;
+    }
+    /* Hide scroll on iframe */
+    body::-webkit-scrollbar { display:none;}
+    * { box-sizing:inherit;}
+  </style>
+</head>
+<body>
+<div id="game-root"></div>
+<audio id="sfx-click" src="https://cdn.pixabay.com/audio/2022/10/16/audio_12b56340a6.mp3" preload="auto"></audio>
+<audio id="sfx-correct" src="https://cdn.pixabay.com/audio/2022/07/26/audio_124b558b42.mp3" preload="auto"></audio>
+<audio id="sfx-wrong" src="https://cdn.pixabay.com/audio/2022/02/16/audio_115b22a8bc.mp3" preload="auto"></audio>
+<audio id="sfx-win" src="https://cdn.pixabay.com/audio/2022/10/16/audio_12b56340a6.mp3" preload="auto"></audio>
+<script>
+/* === EASY TO EDIT BLOCK: questions, images, colors, etc. ==== */
+const settings = {
+  character: {
+    img: "https://media.tenor.com/7PyjPoFb_ZUAAAAi/halloween-happy-halloween.gif",
+    width: 200, height: 200
+  },
+  star: "https://media.tenor.com/5jGPR7PgBeAAAAAi/star-sparkle.gif",
+  objectSize: 90,
+  questions: [
+    { num: 1, answer: "one", hint: "o" },
+    { num: 2, answer: "two", hint: "t" },
+    { num: 3, answer: "three", hint: "t" },
+    { num: 4, answer: "four", hint: "f" },
+    { num: 5, answer: "five", hint: "f" },
+    { num: 6, answer: "six", hint: "s" },
+    { num: 7, answer: "seven", hint: "s" },
+    { num: 8, answer: "eight", hint: "e" },
+    { num: 9, answer: "nine", hint: "n" },
+    { num: 10, answer: "ten", hint: "t" },
+  ],
+  winTitles: [
+    {min:0, max: 4, text: "Kitten Wizard"},
+    {min:5, max: 6, text: "Cat Magician"},
+    {min:7, max: 8, text: "Feline Sorcerer"},
+    {min:9, max:10, text: "Cosmo Cat"},
+  ]
+};
+
+/* === Utility === */
+/* Shuffle: Fisher-Yates */
+function shuffle(arr){
+  let a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+/* Random float between min and max */
+function randBetween(min, max){ return min + Math.random()*(max-min);}
+function playSound(id){const a=document.getElementById(id);if(a) {a.currentTime=0; a.play();}}
+
+let questionSet;
+let state = {
+  step: 0,
+  stars: [],
+  positions: [],
+  currentObj: null,
+  score: 0,
+  correctStreak: 0,
+  combo: 0,
+  inputWrong: 0,
+  isInputBlocked: false,
+  hintsShown: [],
+  finished: false,
+};
+
+/* === Init === */
+function layoutStars(){
+  // Slots: distribute stars randomly within a zone, avoiding overlap
+  let n = questionSet.length, stars=[], w=window.innerWidth, h=window.innerHeight;
+  let bboxHeight = Math.min(h-100, 520), boxTop = (h-bboxHeight)/2;
+  let positions = [];
+  let triesTotal = 0;
+  for(let i=0;i<n;i++){
+    let tries = 0, found = false;
+    while(!found && tries < 50) {
+      let x = randBetween(w*.36, w*.73)-settings.objectSize/2;
+      let y = randBetween(boxTop, boxTop + bboxHeight)-settings.objectSize/2;
+      found = true;
+      for(let p of positions)
+        if(Math.abs(p[0]-x)<settings.objectSize+15 && Math.abs(p[1]-y)<settings.objectSize+15) { found = false; break;}
+      if(found) positions.push([x, y]);
+      tries++;
+    }
+    triesTotal+=tries;
+  }
+  return positions;
+}
+function resetGame() {
+  state.step = 0;
+  state.score = 0;
+  state.correctStreak = 0;
+  state.combo = 0;
+  state.finished = false;
+  state.hintsShown = [];
+  state.inputWrong = 0;
+  questionSet = shuffle(settings.questions);
+  state.positions = layoutStars();
+}
+function $(q, node=document){return node.querySelector(q);}
+function $all(q, node=document){return Array.from(node.querySelectorAll(q));}
+/* === Render === */
+function render(){
+  if(state.finished) return;
+  const root = $("#game-root");
+  // Character
+  let cat = `<img class="character" 
+              id="game-cat" 
+              src="${settings.character.img}" 
+              width="${settings.character.width}" height="${settings.character.height}"/>`;
+  // Stars
+  let stars = "";
+  for(let i=0; i<questionSet.length; ++i){
+    if(state.stars[i]?.done) continue;
+    const [x, y] = state.positions[i];
+    stars += `<img src="${settings.star}" 
+              class="star-obj" style="left:${x}px;top:${y}px;" 
+              width="${settings.objectSize}" height="${settings.objectSize}" 
+              data-idx="${i}">
+              `;
+  }
+  // Progress HUD
+  let progress = `
+    <div class="progress-wrap">
+      <div class="progress-bar">
+        <div class="progress-inner" style="width: ${(state.step)/(questionSet.length)*100}%;"></div>
+      </div>
+      <span class="score-block">✨ Star Energy: <span id="score-num">${state.score}</span></span>
+      <span id="combo-label"></span>
+    </div>
+  `;
+  root.innerHTML = cat + stars + progress;
+  bindStarEvents();
+}
+
+/* === Game Flow === */
+
+function bindStarEvents() {
+  $all('.star-obj').forEach(el => {
+    el.onmouseenter = ()=> {
+      el.classList.add("star-glow");
+      playSound('sfx-click');
+    };
+    el.onmouseleave = ()=> {
+      el.classList.remove("star-glow");
+    };
+    el.onclick = ()=>{
+      if(state.isInputBlocked || state.currentObj!==null) return;
+      const idx = parseInt(el.dataset.idx);
+      launchToStar(idx, el);
+    };
+  });
+}
+function launchToStar(i, starEl){
+  let cat = $("#game-cat");
+  let [x, y] = state.positions[i];
+  let catRect = cat.getBoundingClientRect(),
+      starRect = starEl.getBoundingClientRect();
+  // Angle math: rotate cat face to star
+  let dx = (starRect.left+starRect.width/2) - (catRect.left + catRect.width/2),
+      dy = (starRect.top+starRect.height/2) - (catRect.top + catRect.height/2);
+  const angle = Math.atan2(dy, dx) * 180/Math.PI;
+  // Animate
+  cat.style.transition = 'transform 1.1s cubic-bezier(.77,-0.22,.26,1.10)';
+  cat.style.transform = `translateY(-50%) translate(${dx}px,${dy}px) rotate(${angle}deg) scaleX(${dx<0?'-1':'1'})`;
+  state.isInputBlocked = true;
+  setTimeout(()=>{
+    // Cat stays
+    // Star pulsate & disappear
+    starEl.classList.add("pulsate");
+    setTimeout(()=>{
+      starEl.parentNode.removeChild(starEl);
+      cat.style.transition = "transform .65s cubic-bezier(.68,-0.55,.27,1.55)";
+      cat.style.transform = "translateY(-50%)"; // Back to left
+      state.isInputBlocked = false;
+      state.currentObj = i;
+      showTaskBox(i);
+    },600);
+  },800);
+}
+
+function showTaskBox(idx){
+  let q = questionSet[idx];
+  let root = $("#game-root");
+  // Magic glow on box if wrong
+  let inputEl = "";
+  let hints = state.hintsShown[idx]?`<div class="hint-box">Hint: <strong>${q.hint.toUpperCase()}</strong>...</div>`:"";
+  let html = `
+    <div class="task-box-wrap"><form class="task-box" id="q-form">
+      <div class="task">Write this number in English:<br><span style="font-size: 2.7em; color:#fff;text-shadow:0 2px 14px #ffd36a">${q.num}</span></div>
+      <input type="text" autoFocus spellcheck="false" autoCapitalize="none" maxlength="10" id="user-input" autocomplete="off"/>
+      <button type="submit" class="check-btn" id="check-btn">Check</button>
+      ${hints}
+    </form></div>
+  `;
+  root.insertAdjacentHTML('beforeend', html);
+  $("#user-input").focus();
+  $("#q-form").onsubmit = e => {
+    e.preventDefault();
+    handleCheck(idx);
+  };
+}
+
+function handleCheck(idx){
+  if(state.isInputBlocked) return;
+  let q = questionSet[idx];
+  let inp = $("#user-input");
+  let val = inp.value.trim().toLowerCase();
+  if(val === q.answer) {
+    // Success!
+    state.score += 1 + (state.combo >= 2 ? Math.floor(0.5*state.combo) : 0);
+    state.correctStreak += 1;
+    state.combo = (state.combo||0) + 1;
+    showCombo();
+    state.step++;
+    // Remove box, sparkles
+    animateSparkles(inp);
+    playSound('sfx-correct');
+    setTimeout(()=>{
+      $(".task-box-wrap").remove();
+      nextQuestion(idx);
+    },870);
+  } else {
+    // Mistake!
+    state.correctStreak = 0;
+    inp.classList.add('wrong');
+    playSound('sfx-wrong');
+    shakeTask();
+    state.combo = 0;
+    state.inputWrong++;
+    if(state.inputWrong >= 3) {
+      // Show hint/answer
+      if(settings.questions[idx].hint && !state.hintsShown[idx]) {
+        state.hintsShown[idx]=true;
+        setTimeout(()=>showHint(idx), 510);
+      } else {
+        // Show answer and move on, minus point
+        setTimeout(()=>{
+          showAnswer(idx);
+        }, 820);
+      }
+    }
+  }
+}
+
+function showCombo(){
+  if(state.combo >= 2) {
+    let label = $("#combo-label");
+    label.innerHTML = `<span class="combo-block">✨ COMBO x${state.combo}!</span>`;
+    setTimeout(()=>{label.innerHTML='';}, 1350);
+  }
+}
+
+function showHint(idx){
+  let box = $(".task-box");
+  box.insertAdjacentHTML('beforeend', `<div class="hint-box">Hint: <strong>${questionSet[idx].hint.toUpperCase()}</strong>...</div>`);
+  state.inputWrong = 0; // Reset for this question
+}
+
+function showAnswer(idx){
+  let box = $(".task-box");
+  box.insertAdjacentHTML('beforeend', `<div class="hint-box" style="background:#ffd9e8;color:#d00;border-color:#d00;">Correct answer: <strong>${questionSet[idx].answer.toUpperCase()}</strong></div>`);
+  state.score = Math.max(0, state.score - 1);
+  setTimeout(()=>{
+     $(".task-box-wrap").remove();
+     state.step++;
+     nextQuestion(idx);
+  },1100);
+}
+
+function nextQuestion(idx){
+  state.currentObj = null;
+  state.inputWrong = 0;
+  if(state.step >= questionSet.length){
+    finishGame();
+  } else {
+    render();
+  }
+}
+
+function animateSparkles(inp){
+  let b = inp.getBoundingClientRect(), root = $("#game-root");
+  let colors = ["","cyan","pink","yellow"];
+  for(let i=0;i<13+Math.random()*3;++i){
+    let el = document.createElement("div");
+    el.className = "sparkle "+colors[Math.floor(Math.random()*colors.length)];
+    let angle = Math.random()*2*Math.PI, r = 37 + Math.random()*18;
+    el.style.left = (b.left+wScrollX + 1.5*b.width/3 + Math.cos(angle)*r) + "px";
+    el.style.top = (b.top+wScrollY + 8 + Math.sin(angle)*r) + "px";
+    root.appendChild(el);
+    setTimeout(()=>el.remove(), 920+Math.random()*100);
+  }
+}
+
+/* === WIN SCREEN === */
+function finishGame(){
+  state.finished = true;
+  // Animate cat out to right
+  let cat = $("#game-cat");
+  let catTo = window.innerWidth+220;
+  cat.style.transition = "transform 2.3s cubic-bezier(.68,-0.55,.27,1.2)";
+  cat.style.transform = `translateY(-50%) translate(${catTo}px,0) scaleX(1)`;
+  setTimeout(()=>{
+    cat.style.visibility="hidden";
+    showWin();
+  },1500);
+}
+function getTitle(score){
+  let t = settings.winTitles.find(x=>score>=x.min && score<=x.max);
+  return t ? t.text : "Cosmo Cat";
+}
+function showWin(){
+  playSound('sfx-win');
+  let root = $("#game-root");
+  // And our cat appears again at left
+  setTimeout(()=>{
+     let box = document.createElement("div");
+     box.className = "win-box";
+     box.innerHTML = `
+      <div class="win-title">${getTitle(state.score)}</div>
+      <img src="${settings.character.img}" style="width:120px;margin:15px auto 0 auto;display:block;">
+      <div class="win-score">Your score: <b>${state.score}</b></div>
+      <div class="win-text">You did it!<br>Password: <b>3434</b></div>
+     `;
+     root.appendChild(box);
+  },1200);
+}
+
+/* == Anim etc == */
+function shakeTask(){
+  let form = $(".task-box");
+  if(form) form.classList.add('task-glow');
+  let inp = $("#user-input");
+  inp.classList.add('wrong');
+  setTimeout(()=>{
+    inp.classList.remove('wrong');
+    if(form) form.classList.remove('task-glow');
+  },550);
+}
+/* == Run == */
+function prepareGame(){
+  resetGame();
+  render();
+}
+
+window.addEventListener('DOMContentLoaded', prepareGame);
+window.addEventListener('resize', ()=>{if(!state.finished) { state.positions = layoutStars(); render(); }});
+</script>
+</body>
+</html>
